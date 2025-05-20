@@ -1,8 +1,7 @@
 #setwd and load the data
-setwd ("C:\\Users\\lt24c539\\Downloads\\")
+setwd ("YOUR FILE PATH")
 df <- read.csv("hospit_precip.csv")
 head(df)
-
 
 # Load necessary packages
 library(ggplot2)
