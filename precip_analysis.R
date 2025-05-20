@@ -53,13 +53,13 @@ print(groups)
 #model with rainfall as continuous exposure
 for(i in subgroups){
   
-  formula_pop = as.formula(paste0(i, " ~ cb_RhiresD + dow + ns(Date, df = ", 6*9, ")"))
+  formula_pop = as.formula(paste0(i, " ~ cb_RhiresD + cb_temp + dow + ns(Date, df = ", 6*9, ")"))
   
   # fit the model with the crossbasis object
-  mod_RhiresD <- glm(formula_pop, data = df, family = quasipoisson)
+  model_RhiresD <- glm(formula_pop, data = df, family = quasipoisson)
   
   # predict
-  pred_RhiresD <- crosspred(cb_RhiresD, mod_RhiresD, cen = 0)
+  pred_RhiresD <- crosspred(cb_RhiresD, model_RhiresD, cen = 0)
   
   plot(pred_RhiresD, 
        "overall",
@@ -74,11 +74,14 @@ for(i in subgroups){
 #note that values in this column are binary
 #loop through subgroups again
 for(i in subgroups){
-  model_pp.2 <- glm(as.formula(paste0(i, " ~ cb_pp.2 + cb_temp + dow")),
-                    family=quasipoisson(), data=df, na.action="na.exclude")
   
-  #predict
-  pred_pp.2 <- crosspred(cb_pp.2, model_pp.2, cen = 0)
+  formula_pop = as.formula(paste0(i, " ~ cb_pp.2 + cb_temp + dow + ns(Date, df = ", 6*9, ")"))
+  
+  # fit the model with the crossbasis object
+  model_pp.2 <- glm(formula_pop, data = df, family = quasipoisson)
+  
+  # predict
+  pred_pep90.2 <- crosspred(cb_pp.2, mod_pp.2, cen = 0)
   
   plot(pred_pp.2, 
        "overall",
@@ -93,15 +96,15 @@ for(i in subgroups){
 
 #MODEL 3: PEP90.2 (>= 90th percentile over consecutive 2 days)
 #note that values in this column are binary
-for(i in subgroup){
+for(i in subgroups){
   
-  formula_pop = as.formula(paste0(i, " ~ cb_pep90.2 + dow + ns(Date, df = ", 6*9, ")"))
+  formula_pop = as.formula(paste0(i, " ~ cb_pep90.2 + cb_temp + dow + ns(Date, df = ", 6*9, ")"))
   
   # fit the model with the crossbasis object
   model_pep90.2 <- glm(formula_pop, data = df, family = quasipoisson)
   
   # predict
-  pred_pep90.2 <- crosspred(cb_pep90.2, mod2, cen = 0)
+  pred_pep90.2 <- crosspred(cb_pep90.2, mod_pep90.2, cen = 0)
   
   plot(pred_90.2, 
        "overall",
