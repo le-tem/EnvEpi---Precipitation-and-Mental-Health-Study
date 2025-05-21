@@ -43,6 +43,9 @@ cb_temp <- crossbasis(df$TabsD, lag=3, argvar=list(fun="lin"), arglag=list(fun="
 #model_pep90.2 <- gnm(as.formula(paste0(i, " ~ cb_pep90.2 + cb_temp + dow")), eliminate=stratum,
              #family=quasipoisson(), data=data, na.action="na.exclude",
              #subset=ind>0)
+#note that regression removves the effect of certain variables - confounding factors, therefore we remove
+#these, such as day of the week (e.g due to behavioural issues) - especially important in
+#hospitalization data
 
 # now loop through all subgroups to apply the model to them 
 # define subgroups: these are all, >65y, <65y, men, women
