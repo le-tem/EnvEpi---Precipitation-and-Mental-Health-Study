@@ -1,0 +1,30 @@
+#setwd and load the data
+#setwd ("YOUR DIRECTORY PATH")
+
+
+# Load necessary packages
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(scales)
+library(splines)
+library(dlnm)
+
+df <- read.csv("hospit_precip.csv")
+
+
+# As continuous - same day
+formula0 <- all ~ RhiresD + as.factor(dow) + ns(Date,df=6*length(unique(dta$year)))
+model0 <- glm(formula0,dta,family=quasipoisson,na.action="na.exclude")
+
+summary(model0)
+
+ci.exp(model0, subset="RhiresD")
+summary(model0)
+
+
+Exponentiated_Estimate_(RR) <- exp(summary(model0)$coefficient["RhiresD","Estimate"])
+Exponentiated_Estimate_(RR)_upperlimit_conf <- exp(summary(model0)$coefficient["RhiresD","Estimate"] + 1.96* summary(model0)$coefficient["RhiresD","Std. Error"])
+
+
+
