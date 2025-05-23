@@ -1,30 +1,53 @@
-#setwd and load the data
-#setwd ("YOUR DIRECTORY PATH")
+# Set working directory and load data
+setwd("YOUR DIRECTORY PATH")
+df <- read.csv("hospit_precip.csv")
 
-
-# Load necessary packages
+# Load required packages
 library(ggplot2)
 library(dplyr)
 library(lubridate)
-library(scales)
 library(splines)
-library(dlnm)
 
-df <- read.csv("hospit_precip.csv")
+# Prepare date and time variables
+df$Date <- as.Date(df$Date, format = "%d.%m.%Y")
+df$dow <- weekdays(df$Date)
+df$Year <- year(df$Date)
 
+# List of subgroups
+subgroups <- c("all", "ao64y", "a65plusy", "sex1", "sex2")
 
-# As continuous - same day
-formula0 <- all ~ RhiresD + as.factor(dow) + ns(Date,df=6*length(unique(dta$year)))
-model0 <- glm(formula0,dta,family=quasipoisson,na.action="na.exclude")
+# ---- Model 1: Precipitation as a continuous variable ----
+for (i in subgroups) {
+  formula1 <- as.formula(paste0(i, " ~ RhiresD + TabsD + as.factor(dow) + ns(Date, df = ", 6*9, ")"))
+  model1 <- glm(formula1, data = df, family = quasipoisson(), na.action = "na.exclude")
+  
+  cat("\n--- Continuous Precipitation: Subgroup =", i, "---\n")
+  print(summary(model1))
+  rr <- exp(coef(model1)["RhiresD"])
+  rr_ci <- exp(confint(model1)["RhiresD", ])
+  cat("RR:", rr, "\n95% CI:", rr_ci, "\n")
+}
 
-summary(model0)
+# ---- Model 2: Extreme Precipitation Indicator - PP.2 (>= 1mm over 2 days) ----
+for (i in subgroups) {
+  formula2 <- as.formula(paste0(i, " ~ pp.2 + TabsD + as.factor(dow) + ns(Date, df = ", 6*9, ")"))
+  model2 <- glm(formula2, data = df, family = quasipoisson(), na.action = "na.exclude")
+  
+  cat("\n--- PP.2 Indicator: Subgroup =", i, "---\n")
+  print(summary(model2))
+  rr <- exp(coef(model2)["pp.2"])
+  rr_ci <- exp(confint(model2)["pp.2", ])
+  cat("RR:", rr, "\n95% CI:", rr_ci, "\n")
+}
 
-ci.exp(model0, subset="RhiresD")
-summary(model0)
-
-
-Exponentiated_Estimate_(RR) <- exp(summary(model0)$coefficient["RhiresD","Estimate"])
-Exponentiated_Estimate_(RR)_upperlimit_conf <- exp(summary(model0)$coefficient["RhiresD","Estimate"] + 1.96* summary(model0)$coefficient["RhiresD","Std. Error"])
-
-
-
+# ---- Model 3: Extreme Precipitation Indicator - PEP90.2 (>= 90th percentile over 2 days) ----
+for (i in subgroups) {
+  formula3 <- as.formula(paste0(i, " ~ pep90.2 + TabsD + as.factor(dow) + ns(Date, df = ", 6*9, ")"))
+  model3 <- glm(formula3, data = df, family = quasipoisson(), na.action = "na.exclude")
+  
+  cat("\n--- PEP90.2 Indicator: Subgroup =", i, "---\n")
+  print(summary(model3))
+  rr <- exp(coef(model3)["pep90.2"])
+  rr_ci <- exp(confint(model3)["pep90.2", ])
+  cat("RR:", rr, "\n95% CI:", rr_ci, "\n")
+}
