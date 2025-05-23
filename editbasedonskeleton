@@ -6,48 +6,56 @@ df <- read.csv("hospit_precip.csv")
 library(ggplot2)
 library(dplyr)
 library(lubridate)
-library(splines)
+library(zoo)  # for moving averages
 
-# Prepare date and time variables
+# Load and prep data
+setwd("YOUR DIRECTORY PATH")
+df <- read.csv("hospit_precip.csv")
+
 df$Date <- as.Date(df$Date, format = "%d.%m.%Y")
-df$dow <- weekdays(df$Date)
-df$Year <- year(df$Date)
+df$Month <- floor_date(df$Date, "month")
+
+# Create 3-day moving average of precipitation
+df$RhiresD_ma3 <- zoo::rollapply(df$RhiresD, width = 3, FUN = mean, align = "right", fill = NA)
 
 # List of subgroups
 subgroups <- c("all", "ao64y", "a65plusy", "sex1", "sex2")
 
-# ---- Model 1: Precipitation as a continuous variable ----
+# Create plots for each subgroup against continuous precipitation (RhiresD_ma3)
 for (i in subgroups) {
-  formula1 <- as.formula(paste0(i, " ~ RhiresD + TabsD + as.factor(dow) + ns(Date, df = ", 6*9, ")"))
-  model1 <- glm(formula1, data = df, family = quasipoisson(), na.action = "na.exclude")
   
-  cat("\n--- Continuous Precipitation: Subgroup =", i, "---\n")
-  print(summary(model1))
-  rr <- exp(coef(model1)["RhiresD"])
-  rr_ci <- exp(confint(model1)["RhiresD", ])
-  cat("RR:", rr, "\n95% CI:", rr_ci, "\n")
-}
-
-# ---- Model 2: Extreme Precipitation Indicator - PP.2 (>= 1mm over 2 days) ----
-for (i in subgroups) {
-  formula2 <- as.formula(paste0(i, " ~ pp.2 + TabsD + as.factor(dow) + ns(Date, df = ", 6*9, ")"))
-  model2 <- glm(formula2, data = df, family = quasipoisson(), na.action = "na.exclude")
+  # Group by date to calculate daily totals and combine with precipitation
+  df_sub <- df %>%
+    select(Date, Month, !!sym(i), RhiresD_ma3, pp.2, pep90.2) %>%
+    rename(Hosp = !!sym(i)) %>%
+    group_by(Month) %>%
+    summarise(
+      Mean_Hosp = mean(Hosp, na.rm = TRUE),
+      Mean_Precip = mean(RhiresD_ma3, na.rm = TRUE),
+      PP.2_Rate = mean(pp.2, na.rm = TRUE),
+      PEP90.2_Rate = mean(pep90.2, na.rm = TRUE)
+    ) %>%
+    ungroup()
   
-  cat("\n--- PP.2 Indicator: Subgroup =", i, "---\n")
-  print(summary(model2))
-  rr <- exp(coef(model2)["pp.2"])
-  rr_ci <- exp(confint(model2)["pp.2", ])
-  cat("RR:", rr, "\n95% CI:", rr_ci, "\n")
-}
-
-# ---- Model 3: Extreme Precipitation Indicator - PEP90.2 (>= 90th percentile over 2 days) ----
-for (i in subgroups) {
-  formula3 <- as.formula(paste0(i, " ~ pep90.2 + TabsD + as.factor(dow) + ns(Date, df = ", 6*9, ")"))
-  model3 <- glm(formula3, data = df, family = quasipoisson(), na.action = "na.exclude")
+  # Plot: Hospitalizations vs Mean Precipitation (with dual axis)
+  p <- ggplot(df_sub, aes(x = Month)) +
+    geom_bar(aes(y = Mean_Hosp * 5), stat = "identity", fill = "gray70", alpha = 0.6) +
+    geom_line(aes(y = Mean_Precip, color = "Precipitation (3-day avg)"), linewidth = 1.2) +
+    scale_y_continuous(
+      name = "Precipitation (mm)",
+      sec.axis = sec_axis(~./5, name = "Avg. Hospitalizations")
+    ) +
+    scale_color_manual(values = c("Precipitation (3-day avg)" = "blue")) +
+    labs(
+      title = paste("Monthly Avg. Hospitalizations and Precipitation for:", i),
+      x = "Month",
+      color = "Variable"
+    ) +
+    theme_minimal() +
+    theme(
+      axis.title.y.right = element_text(color = "gray40"),
+      legend.position = "top"
+    )
   
-  cat("\n--- PEP90.2 Indicator: Subgroup =", i, "---\n")
-  print(summary(model3))
-  rr <- exp(coef(model3)["pep90.2"])
-  rr_ci <- exp(confint(model3)["pep90.2", ])
-  cat("RR:", rr, "\n95% CI:", rr_ci, "\n")
+  print(p)
 }
