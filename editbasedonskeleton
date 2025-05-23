@@ -8,10 +8,6 @@ library(dplyr)
 library(lubridate)
 library(zoo)  # for moving averages
 
-# Load and prep data
-setwd("YOUR DIRECTORY PATH")
-df <- read.csv("hospit_precip.csv")
-
 df$Date <- as.Date(df$Date, format = "%d.%m.%Y")
 df$Month <- floor_date(df$Date, "month")
 
