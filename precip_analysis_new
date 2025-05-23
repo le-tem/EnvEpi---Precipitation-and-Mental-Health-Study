@@ -1,0 +1,75 @@
+
+# Load necessary packages
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(scales)
+library(splines)
+library(dlnm)
+
+dta <- read.csv("hospit_precip.csv")
+
+# Convert dates to date objects
+# note format is based on the copy of the data i have - you may need to change this
+dta$Date <- as.Date(dta$Date, format = "%d.%m.%Y")
+
+# Extract month and year directly
+dta$Month <- month(dta$Date)
+dta$Year <- year(dta$Date)
+
+#calculate dow
+dta$dow <- weekdays(as.Date(dta$Date, format = "%d.%m.%Y"))
+
+
+
+
+
+
+#continuous precip - for all to start with 
+#was getting stuck on spline function so changed this manually for the time being
+formula0 <- all ~ RhiresD + TabsD + as.factor(dow) + ns(Date,df=6*9)
+model0 <- glm(formula0,dta,family=quasipoisson,na.action="na.exclude")
+
+#we could also compare the results without temperature as a confounder?
+
+#summary statistics and plotting
+summary(model0)
+plot(model0)
+
+#confidence intervals
+ci.exp(model0, subset="RhiresD")
+summary(model0)
+
+Exponentiated_Estimate_(RR) <- exp(summary(model0)$coefficient["RhiresD","Estimate"])
+Exponentiated_Estimate_(RR)_upperlimit_conf <- exp(summary(model0)$coefficient["RhiresD","Estimate"] + 1.96* summary(model0)$coefficient["RhiresD","Std. Error"])
+
+
+
+
+
+
+#need to add more to these, but these are the remaining models
+#for pp.2
+formula1 <- all ~ pp.2 + TabsD + as.factor(dow) + ns(Date,df=6*9)
+model1 <- glm(formula0,dta,family=quasipoisson,na.action="na.exclude")
+
+#for pep90.2
+formula2 <- all ~ pep90.2 + TabsD + as.factor(dow) + ns(Date,df=6*9)
+model2 <- glm(formula0,dta,family=quasipoisson,na.action="na.exclude")
+
+
+
+
+
+
+
+
+######
+#next step, loop through all subpopulations and compare results
+
+#continuous precip - for ao64y 
+formula0 <- ao64y ~ RhiresD + as.factor(dow) + ns(Date,df=6*9)
+model0 <- glm(formula0,dta,family=quasipoisson,na.action="na.exclude")
+
+
+
