@@ -15,7 +15,7 @@ df$Month <- floor_date(df$Date, "month")
 df$RhiresD_ma3 <- zoo::rollapply(df$RhiresD, width = 3, FUN = mean, align = "right", fill = NA)
 
 # List of subgroups
-subgroups <- c("all", "ao64y", "a65plusy", "sex1", "sex2")
+subgroups <- c("all", "a064y", "a65plusy", "sex1", "sex2")
 
 # Create plots for each subgroup against continuous precipitation (RhiresD_ma3)
 for (i in subgroups) {
