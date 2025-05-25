@@ -87,7 +87,6 @@ ggplot(yearly_data, aes(x = Year)) +
     legend.position = "top"
   )
 
-
 # Model formulas by model name
 model_list <- list(
   "Model 1: RhiresD" = function(subgroup) {
