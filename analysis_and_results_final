@@ -1,0 +1,116 @@
+# LOAD LIBRARIES
+library(tsModel) 
+library(Epi)
+library(splines)
+library(lubridate)
+library(ggplot2)
+library(grid)
+library(gtable)
+
+# SET PATH
+
+# READ DATA
+dta <- read.csv("hospit_precip.csv")
+
+# TIME VARIABLES
+dta$Date <- as.Date(dta$Date, "%d.%m.%Y") #note you may need to edit this based on the file youre using
+dta$year <- year(dta$Date)
+dta$dow <- wday(dta$Date)
+
+subgroups <- c("all", "ao64y", "a65plusy", "sex1", "sex2")
+
+# Compute lag variables
+dta$RhiresD_03 <- runMean(dta$RhiresD, lags = 0:3)
+dta$TabsD_03   <- runMean(dta$TabsD, lags = 0:3)
+
+# Model formulas by model name
+model_list <- list(
+  "Model 1: RhiresD" = function(subgroup) {
+    as.formula(paste(subgroup, "~ RhiresD + as.factor(dow) + ns(Date, df = 6 * length(unique(dta$year)))"))
+  },
+  "Model 2: RhiresD_03" = function(subgroup) {
+    as.formula(paste(subgroup, "~ RhiresD_03 + as.factor(dow) + ns(Date, df = 6 * length(unique(dta$year)))"))
+  },
+  "Model 3: RhiresD_03 + TabsD_03" = function(subgroup) {
+    as.formula(paste(subgroup, "~ RhiresD_03 + TabsD_03 + as.factor(dow) + ns(Date, df = 6 * length(unique(dta$year)))"))
+  },
+  "Model 4: pp.2 + TabsD_03" = function(subgroup) {
+    as.formula(paste(subgroup, "~ pp.2 + TabsD_03 + as.factor(dow) + ns(Date, df = 6 * length(unique(dta$year)))"))
+  },
+  "Model 5: pep90.2 + TabsD_03" = function(subgroup) {
+    as.formula(paste(subgroup, "~ pep90.2 + TabsD_03 + as.factor(dow) + ns(Date, df = 6 * length(unique(dta$year)))"))
+  }
+)
+
+# Exposure variable to extract per model
+exposure_vars <- c("RhiresD", "RhiresD_03", "RhiresD_03", "pp.2", "pep90.2")
+names(exposure_vars) <- names(model_list)
+
+# Loop through models
+for (model_name in names(model_list)) {
+  results <- data.frame(
+    subgroup = character(),
+    RR = numeric(),
+    lower = numeric(),
+    upper = numeric(),
+    p_value = numeric(),
+    stringsAsFactors = FALSE
+  )
+  
+  exposure_var <- exposure_vars[[model_name]]
+  
+  for (i in subgroups) {
+    formula <- model_list[[model_name]](i)
+    model <- glm(formula, data = dta, family = quasipoisson, na.action = na.exclude)
+    
+    coef_info <- summary(model)$coefficients[exposure_var, ]
+    est <- coef_info["Estimate"]
+    se <- coef_info["Std. Error"]
+    p_val <- coef_info["Pr(>|t|)"]
+    
+    rr <- exp(est)
+    ci_lower <- exp(est - 1.96 * se)
+    ci_upper <- exp(est + 1.96 * se)
+    
+    results <- rbind(results, data.frame(
+      subgroup = i,
+      RR = rr,
+      lower = ci_lower,
+      upper = ci_upper,
+      p_value = p_val
+    ))
+  }
+  
+#FORMAT RESULTS AS TABLE
+  table_data <- results
+  table_data$RR <- sprintf("%.3f", table_data$RR)
+  table_data$CI <- paste0("(", sprintf("%.3f", table_data$lower), " – ", sprintf("%.3f", table_data$upper), ")")
+  table_data$p_value <- ifelse(table_data$p_value < 0.001, "<0.001", sprintf("%.3f", table_data$p_value))
+  table_data <- table_data[, c("subgroup", "RR", "CI", "p_value")]
+  colnames(table_data) <- c("Subgroup", "RR", "95% CI", "p-value")
+  
+  table_grob <- tableGrob(table_data, rows = NULL)
+  title_grob <- textGrob(model_name, gp = gpar(fontsize = 14, fontface = "bold"))
+  padding <- unit(5, "mm")
+  table_with_title <- gtable_add_rows(table_grob, heights = grobHeight(title_grob) + padding, pos = 0)
+  table_with_title <- gtable_add_grob(table_with_title, list(title_grob), t = 1, l = 1, r = ncol(table_grob))
+  
+  # Display table
+  grid.newpage()
+  grid.draw(table_with_title)
+  
+#PLOT RESULTS (RR ALONE)
+  results$subgroup <- factor(results$subgroup, levels = rev(subgroups))
+  
+  plot <- ggplot(results, aes(x = RR, y = subgroup)) +
+    geom_point(size = 3) +
+    geom_errorbarh(aes(xmin = lower, xmax = upper), height = 0.2) +
+    geom_vline(xintercept = 1, linetype = "dashed", color = "red") +
+    xlab(paste0("Relative Risk (RR)")) +
+    ylab("Subgroup") +
+    ggtitle(model_name) +
+    theme_minimal() +
+    theme(text = element_text(size = 12))
+  
+  print(plot)
+}
