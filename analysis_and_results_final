@@ -87,6 +87,50 @@ ggplot(yearly_data, aes(x = Year)) +
     legend.position = "top"
   )
 
+# Define subgroup names and labels
+subgroups <- c("sex1", "sex2", "a064y", "a65plusy")
+labels <- c("Males", "Females", "Age ≤ 64", "Age > 64")
+
+# Loop through subgroups and create plots
+for (i in seq_along(subgroups)) {
+  
+  subgroup <- subgroups[i]
+  label <- labels[i]
+  
+  # Aggregate yearly data
+  yearly_data <- dta %>%
+    group_by(Year) %>%
+    summarise(
+      Mean_Hosp = mean(.data[[subgroup]], na.rm = TRUE),
+      Mean_Temp = mean(TabsD, na.rm = TRUE),
+      Mean_Precip = mean(RhiresD, na.rm = TRUE)
+    )
+  
+  # Create plot
+  p <- ggplot(yearly_data, aes(x = Year)) +
+    geom_bar(aes(y = Mean_Hosp * 5), stat = "identity", fill = "gray80", alpha = 0.6) +
+    geom_line(aes(y = Mean_Temp, color = "Temperature"), linewidth = 1.2) +
+    geom_line(aes(y = Mean_Precip, color = "Precipitation"), linewidth = 1.2) +
+    scale_y_continuous(
+      name = "Temperature / Precipitation",
+      sec.axis = sec_axis(~./5, name = "Hospitalisations (avg per day)")
+    ) +
+    scale_x_continuous(breaks = 2011:2019) +
+    scale_color_manual(values = c("Temperature" = "red", "Precipitation" = "blue")) +
+    labs(
+      title = paste("Yearly Avg Temperature, Precipitation, and Hospitalisations -", label),
+      x = "Year",
+      color = "Variable"
+    ) +
+    theme_minimal() +
+    theme(
+      axis.title.y.right = element_text(color = "gray40"),
+      legend.position = "top"
+    )
+  
+  print(p)  # Show plot
+}
+
 # Model formulas by model name
 model_list <- list(
   "Model 1: RhiresD" = function(subgroup) {
